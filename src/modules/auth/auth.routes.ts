@@ -28,4 +28,8 @@ authRouter.post("/logout", (req: Request, res: Response, next: NextFunction) => 
     AuthController.Logout(req, res, next)
 })
 
+authRouter.post("/refresh", (req: Request, res: Response, next: NextFunction) => {
+    AuthController.Refresh_AccessToken(req, res, next)
+})
+
 export default authRouter

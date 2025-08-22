@@ -8,6 +8,7 @@ import { sendOtpEmail } from '../../utils/emails/sendOtpEmail';
 import { ApiError } from '../../utils/ApiError';
 import { sendResendOtpEmail } from '../../utils/emails/resendOtpEmail';
 import { JwtUtils } from '../../utils/jwtUtils';
+import { NextFunction } from 'express';
 
 export class AuthService {
     static async Register(data: RegisterInput) {
@@ -150,5 +151,26 @@ export class AuthService {
         }
     }
 
-    static async refresh_RefreshToken() { }
+    static async refresh_AccessToken(incommingRefreshToken: string, next: NextFunction) {
+        try {
+            if (!config.REFRESH_TOKEN_SECRET)
+                throw new ApiError(400, "Failed to load token secret")
+            const decodedToken = JwtUtils.verifyToken(incommingRefreshToken, config.REFRESH_TOKEN_SECRET, next)
+            if (!decodedToken)
+                throw new ApiError(401, "Invalid or Expired Token")
+
+            const user = await prisma.user.findUnique({ where: { id: decodedToken.id } })
+
+            if (!user)
+                throw new ApiError(401, "Invalid or Expired Token")
+
+            const { accessToken, refreshToken } = JwtUtils.generateTokens(user.id, user.username, user.role)
+            await prisma.user.update({ where: { id: user.id }, data: { refreshToken } })
+            return { accessToken, refreshToken }
+        } catch (error: any) {
+            if (error instanceof ApiError)
+                throw error
+            throw new ApiError(500, error.message || "Internal Server Error")
+        }
+    }
 }
