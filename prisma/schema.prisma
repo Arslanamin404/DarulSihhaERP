@@ -28,6 +28,11 @@ enum PaymentStatus {
   PENDING
 }
 
+enum OtpType {
+  REGISTER
+  FORGET_PASSWORD
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -36,7 +41,7 @@ model User {
   fullname     String
   role         Role     @default(STAFF)
   refreshToken String?
-  isVerfied    Boolean  @default(false)
+  isVerified   Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   Otp          Otp[]
@@ -47,14 +52,18 @@ model User {
 }
 
 model Otp {
-  id        String   @id @default(cuid())
+  id        Int      @id @default(autoincrement())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
   code      String
-  type      String
+  type      OtpType
   expiresAt DateTime
   used      Boolean  @default(false)
+  verified  Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([userId, type, used, verified, expiresAt])
+  @@index([type, createdAt])
 }
 
 model Customer {

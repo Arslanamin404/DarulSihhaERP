@@ -7,6 +7,9 @@ CREATE TYPE "public"."PaymentMode" AS ENUM ('ONLINE', 'CASH');
 -- CreateEnum
 CREATE TYPE "public"."PaymentStatus" AS ENUM ('PAID', 'PENDING');
 
+-- CreateEnum
+CREATE TYPE "public"."OtpType" AS ENUM ('REGISTER', 'FORGET_PASSWORD');
+
 -- CreateTable
 CREATE TABLE "public"."User" (
     "id" TEXT NOT NULL,
@@ -16,13 +19,25 @@ CREATE TABLE "public"."User" (
     "fullname" TEXT NOT NULL,
     "role" "public"."Role" NOT NULL DEFAULT 'STAFF',
     "refreshToken" TEXT,
-    "otp" TEXT,
-    "otpExpiresAt" TIMESTAMP(3),
-    "isVerfied" BOOLEAN NOT NULL DEFAULT false,
+    "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Otp" (
+    "id" SERIAL NOT NULL,
+    "userId" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "type" "public"."OtpType" NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "used" BOOLEAN NOT NULL DEFAULT false,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Otp_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -144,6 +159,12 @@ CREATE INDEX "User_username_idx" ON "public"."User"("username");
 CREATE INDEX "User_fullname_idx" ON "public"."User"("fullname");
 
 -- CreateIndex
+CREATE INDEX "Otp_userId_type_used_verified_expiresAt_idx" ON "public"."Otp"("userId", "type", "used", "verified", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "Otp_type_createdAt_idx" ON "public"."Otp"("type", "createdAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Customer_phone_key" ON "public"."Customer"("phone");
 
 -- CreateIndex
@@ -178,6 +199,9 @@ CREATE INDEX "PurchaseInvoice_supplierId_idx" ON "public"."PurchaseInvoice"("sup
 
 -- CreateIndex
 CREATE INDEX "PurchaseItem_purchaseInvoiceId_idx" ON "public"."PurchaseItem"("purchaseInvoiceId");
+
+-- AddForeignKey
+ALTER TABLE "public"."Otp" ADD CONSTRAINT "Otp_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."SalesInvoice" ADD CONSTRAINT "SalesInvoice_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "public"."Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
