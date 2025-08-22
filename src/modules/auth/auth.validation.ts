@@ -1,4 +1,3 @@
-import { Role } from "@prisma/client";
 import { z } from "zod"
 
 export const registerSchema = z.object({
@@ -20,9 +19,6 @@ export const registerSchema = z.object({
         .string()
         .trim()
         .min(5, "fullname must be at least of 5 characters")
-        .max(25, "fullname cannot exceed 25 characters"),
-    role: z
-        .enum(Role).default(Role.STAFF)
 });
 
 export const verifyOtpSchema = z.object({
