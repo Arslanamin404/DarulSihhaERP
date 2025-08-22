@@ -253,7 +253,7 @@ export class AuthService {
 
     static async ResetPassword(data: RestPasswordInput) {
         try {
-            const { email, password } = data;
+            const { email, new_password } = data;
             const user = await prisma.user.findFirst({ where: { email } })
             if (!user)
                 throw new ApiError(400, "Invalid Request")
@@ -271,7 +271,7 @@ export class AuthService {
 
             if (!otp_record) throw new ApiError(400, "OTP verification required")
 
-            const hash_password = await bcrypt.hash(password, Number(config.BCRYPT_SALT_ROUNDS))
+            const hash_password = await bcrypt.hash(new_password, Number(config.BCRYPT_SALT_ROUNDS))
 
             await prisma.$transaction(async (tx) => {
                 await tx.user.update({ where: { email }, data: { password: hash_password } })

@@ -112,7 +112,7 @@ export class AuthController {
             if (!incomming_refresh_token)
                 return ApiResponse(res, false, 401, "Unauthorized Request");
 
-            const { accessToken, refreshToken } = await AuthService.refresh_AccessToken(incomming_refresh_token, next)
+            const { accessToken, refreshToken } = await AuthService.refresh_AccessToken(incomming_refresh_token)
             const cookieOptions = {
                 httpOnly: true,
                 secure: config.NODE_ENV === "production",

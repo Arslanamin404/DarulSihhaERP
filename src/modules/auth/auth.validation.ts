@@ -76,7 +76,7 @@ export const resetPasswordSchema = z.object({
         .string({ error: "Email is required" })
         .trim()
         .regex(z.regexes.email, { message: "Invalid email format" }),
-    password: z
+    new_password: z
         .string()
         .trim()
         .min(7, "password must be at least of 7 characters"),

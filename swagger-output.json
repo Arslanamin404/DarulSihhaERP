@@ -23,90 +23,297 @@
     },
     "/api/v1/auth/register": {
       "post": {
-        "description": "",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register new user",
+        "description": "Registers a user and sends OTP for verification.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "123456"
+                },
+                "username": {
+                  "type": "string",
+                  "example": "newuser"
+                },
+                "fullname": {
+                  "type": "string",
+                  "example": "New User"
+                }
+              },
+              "required": [
+                "email",
+                "password",
+                "username",
+                "fullname"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "201": {
+            "description": "User registered successfully. OTP sent to your email, please check it and verify your account."
           }
         }
       }
     },
     "/api/v1/auth/verify-otp": {
       "post": {
-        "description": "",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify Otp for register",
+        "description": "Verief your account.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "otp": {
+                  "type": "string",
+                  "example": "162731"
+                }
+              },
+              "required": [
+                "email",
+                "otp"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "otp verief successfully. You can now proceed to login."
           }
         }
       }
     },
     "/api/v1/auth/resend-otp": {
       "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Resend OTP for registration",
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@example.com"
+                }
+              },
+              "required": [
+                "email"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "OTP resent successfully."
           }
         }
       }
     },
     "/api/v1/auth/login": {
       "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login user",
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "example": "newuser"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "123456"
+                }
+              },
+              "required": [
+                "username",
+                "password"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "Login successful. Sets HttpOnly refreshToken cookie and accessToken."
           }
         }
       }
     },
     "/api/v1/auth/forget-password": {
       "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Request OTP for password reset",
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@example.com"
+                }
+              },
+              "required": [
+                "email"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "OTP sent for password reset."
           }
         }
       }
     },
     "/api/v1/auth/verify-forget-password-otp": {
       "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify OTP for password reset",
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "otp": {
+                  "type": "string",
+                  "example": "123456"
+                }
+              },
+              "required": [
+                "email",
+                "otp"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "OTP verified. User can reset password."
           }
         }
       }
     },
     "/api/v1/auth/reset-password": {
       "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Reset password after verifying OTP",
         "description": "",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "example": "user@example.com"
+                },
+                "new_password": {
+                  "type": "string",
+                  "example": "newPass123"
+                }
+              },
+              "required": [
+                "email",
+                "new_password"
+              ]
+            }
+          }
+        ],
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "Password reset successfully."
           }
         }
       }
     },
     "/api/v1/auth/logout": {
       "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logout user",
         "description": "",
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "Logout successful."
           }
         }
       }
     },
     "/api/v1/auth/refresh": {
       "post": {
-        "description": "",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh access token using refresh token",
+        "description": "Reads HttpOnly refreshToken from cookie, validates it, and issues a new access token.",
         "responses": {
-          "default": {
-            "description": ""
+          "200": {
+            "description": "New access token issued."
+          },
+          "401": {
+            "description": "Invalid or expired refresh token."
           }
         }
       }
