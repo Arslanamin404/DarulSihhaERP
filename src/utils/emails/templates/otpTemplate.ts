@@ -11,7 +11,7 @@ export function otpTemplate({
   expiresInMinutes: number;
   logoUrl: string;
   supportEmail: string;
-  type?: "new" | "resend";
+  type?: "new" | "resend" | "passwordReset";
 }) {
   const brand = {
     bg: "#f6f9fb",
@@ -23,12 +23,18 @@ export function otpTemplate({
     border: "#e2e8f0",
   };
 
-  const heading =
-    type === "resend" ? "Your re-issued verification code" : "Your verification code";
-  const description =
-    type === "resend"
-      ? `We’ve re-sent your One-Time Password (OTP). The previous code is no longer valid. This code will expire in <strong>${expiresInMinutes} minutes</strong>.`
-      : `Use this One-Time Password (OTP) to continue. It expires in <strong>${expiresInMinutes} minutes</strong>.`;
+  let heading = "Your verification code";
+  let description = `Use this One-Time Password (OTP) to continue. It expires in <strong>${expiresInMinutes} minutes</strong>.`;
+
+  if (type === "resend") {
+    heading = "Your re-issued verification code";
+    description = `We’ve re-sent your One-Time Password (OTP). The previous code is no longer valid. This code will expire in <strong>${expiresInMinutes} minutes</strong>.`;
+  }
+
+  if (type === "passwordReset") {
+    heading = "Reset your password";
+    description = `Use the following One-Time Password (OTP) to reset your password. This code will expire in <strong>${expiresInMinutes} minutes</strong>. If you didn’t request a reset, please ignore this email.`;
+  }
 
   return `<!doctype html>
 <html lang="en">
@@ -75,7 +81,7 @@ export function otpTemplate({
                 <div class="otp" style="display:inline-block; font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace; font-size:28px; letter-spacing:6px; padding:14px 18px; border:1px dashed ${brand.border}; border-radius:12px; background:${brand.bg}; color:${brand.text};">${otp}</div>
               </div>
 
-              <p class="muted" style="margin:0 0 10px; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; font-size:13px; color:${brand.subtext};">If you didn’t request this code, you can safely ignore this email.</p>
+              <p class="muted" style="margin:0 0 10px; font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; font-size:13px; color:${brand.subtext};">If you didn’t request this, you can safely ignore this email.</p>
 
               <table role="presentation" width="100%" style="margin-top:18px;">
                 <tr>

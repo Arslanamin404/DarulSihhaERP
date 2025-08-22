@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { prisma } from "../../lib/prisma";
 import { OtpUtils } from "../../utils/otpUtils";
-import { LoginInput, RegisterInput, ResendOtpInput, VerifyOtpInput } from "./auth.validation";
+import { ForgetPasswordInput, LoginInput, RegisterInput, ResendOtpInput, RestPasswordInput, VerifyForgetPasswordInput, VerifyOtpInput } from "./auth.validation";
 import { config } from '../../config/env.config';
 import { Role } from '@prisma/client';
 import { sendOtpEmail } from '../../utils/emails/sendOtpEmail';
@@ -9,6 +9,7 @@ import { ApiError } from '../../utils/ApiError';
 import { sendResendOtpEmail } from '../../utils/emails/resendOtpEmail';
 import { JwtUtils } from '../../utils/jwtUtils';
 import { NextFunction } from 'express';
+import { sendForgetPasswordOtpEmail } from '../../utils/emails/sendForgetPasswordOtpEmail';
 
 export class AuthService {
     static async Register(data: RegisterInput) {
@@ -32,8 +33,14 @@ export class AuthService {
                     username,
                     password: hash_password,
                     role: role as Role,
-                    otp: hash_otp,
-                    otpExpiresAt: otp_expiry
+                }
+            })
+            await prisma.otp.create({
+                data: {
+                    userId: new_user.id,
+                    code: hash_otp,
+                    type: "REGISTER",
+                    expiresAt: otp_expiry
                 }
             })
 
@@ -63,24 +70,24 @@ export class AuthService {
             if (user.isVerfied)
                 throw new ApiError(400, "This account is already verified. You can proceed to login.")
 
-            if (!user.otpExpiresAt || Date.now() > new Date(user.otpExpiresAt).getTime())
-                throw new ApiError(400, "Invalid or expired OTP")
+            const otpRecord = await prisma.otp.findFirst({
+                where: {
+                    userId: user.id,
+                    type: "REGISTER",
+                    used: false,
+                    expiresAt: { gt: new Date() }
+                },
+                orderBy: { createdAt: "desc" }
+            });
+            if (!otpRecord) throw new ApiError(400, "No active OTP request found");
 
-            if (!user.otp)
-                throw new ApiError(400, "Invalid or expired OTP")
+            const isOtpValid = await OtpUtils.verifyOTP(otp, otpRecord.code)
+            if (!isOtpValid) throw new ApiError(400, "Invalid or expired OTP")
 
-            const isOtpValid = await OtpUtils.verifyOTP(otp, user.otp)
-            if (!isOtpValid)
-                throw new ApiError(400, "Invalid or expired OTP")
-
-            await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    isVerfied: true,
-                    otp: null,
-                    otpExpiresAt: null
-                }
-            })
+            await prisma.$transaction([
+                prisma.user.update({ where: { id: user.id }, data: { isVerfied: true } }),
+                prisma.otp.update({ where: { id: otpRecord.id }, data: { used: true } })
+            ])
         } catch (error: any) {
             if (error instanceof ApiError)
                 throw error;
@@ -93,16 +100,18 @@ export class AuthService {
             const { email } = data;
             const user = await prisma.user.findFirst({ where: { email } })
             if (!user)
-                throw new ApiError(400, "Invalid credentials! Please enter a registered email.")
+                throw new ApiError(400, "Invalid credentials!")
             if (user.isVerfied)
                 throw new ApiError(400, "This account is already verified. You can proceed to login.")
 
             const { otp, hash_otp } = await OtpUtils.generateOTP()
             const otp_expiry = new Date(Date.now() + (Number(config.OTP_EXPIRY_MINUTES) * 60 * 1000))
-            await prisma.user.update({
-                where: { email }, data: {
-                    otp: hash_otp,
-                    otpExpiresAt: otp_expiry
+            await prisma.otp.create({
+                data: {
+                    userId: user.id,
+                    code: hash_otp,
+                    expiresAt: otp_expiry,
+                    type: "REGISTER"
                 }
             })
             await sendResendOtpEmail(user.email, otp, config.OTP_EXPIRY_MINUTES)
@@ -120,6 +129,10 @@ export class AuthService {
             const user = await prisma.user.findFirst({ where: { username } })
             if (!user)
                 throw new ApiError(400, "Invalid Credentials")
+
+            if (!user.isVerfied)
+                throw new ApiError(403, "Please verify your email before logging in.");
+
             const isPasswordValid = await bcrypt.compare(password, user.password)
             if (!isPasswordValid)
                 throw new ApiError(400, "Invalid Credentials")
@@ -128,6 +141,115 @@ export class AuthService {
             await prisma.user.update({ where: { username }, data: { refreshToken } })
             return { accessToken, refreshToken }
 
+        } catch (error: any) {
+            if (error instanceof ApiError)
+                throw error
+            throw new ApiError(500, error.message || "Internal Server Error")
+        }
+    }
+
+    static async ForgetPasswordRequest(data: ForgetPasswordInput) {
+        try {
+            const { email } = data
+            const user = await prisma.user.findFirst({ where: { email } })
+            if (!user)
+                throw new ApiError(200, "If this email is registered, you will receive an OTP shortly.");
+
+            const { otp, hash_otp } = await OtpUtils.generateOTP()
+            const otp_expiry = new Date(Date.now() + (Number(config.OTP_EXPIRY_MINUTES) * 60 * 1000))
+
+            await prisma.$transaction(async (tx) => {
+                // mark all prev unused otps as used
+                await tx.otp.updateMany({
+                    where: { userId: user.id, used: false, type: "FORGET_PASSWOED" },
+                    data: { used: true }
+                })
+
+                await tx.otp.create({
+                    data: {
+                        userId: user.id,
+                        code: hash_otp,
+                        expiresAt: otp_expiry,
+                        type: "FORGET_PASSWORD"
+                    }
+                })
+                try {
+                    await sendForgetPasswordOtpEmail(user.email, otp, config.OTP_EXPIRY_MINUTES)
+                } catch (error) {
+                    // throwing inside transaction will rollback
+                    throw new ApiError(500, "Failed to send forget password OTP. Please try again.");
+                }
+            })
+
+        } catch (error: any) {
+            if (error instanceof ApiError)
+                throw error
+            throw new ApiError(500, error.message || "Internal Server Error")
+        }
+    }
+
+    static async VerifyForgetPasswordOTP(data: VerifyForgetPasswordInput) {
+        try {
+            const { email, otp } = data
+            const user = await prisma.user.findFirst({ where: { email } })
+            if (!user)
+                throw new ApiError(400, "Invalid Request")
+
+            const otp_record = await prisma.otp.findFirst({
+                where: {
+                    userId: user.id,
+                    type: "FORGET_PASSWORD",
+                    used: false,
+                    expiresAt: { gt: new Date() }
+                },
+                orderBy: { createdAt: "desc" }
+            })
+
+            if (!otp_record)
+                throw new ApiError(400, "Invalid or expired OTP")
+
+            const isOtpValid = await OtpUtils.verifyOTP(otp, otp_record.code);
+            if (!isOtpValid) throw new ApiError(400, "Invalid or expired OTP");
+
+            await prisma.otp.update({
+                where: { id: otp_record.id },
+                data: { used: true }
+            })
+
+        } catch (error: any) {
+            if (error instanceof ApiError)
+                throw error
+            throw new ApiError(500, error.message || "Internal Server Error")
+        }
+    }
+
+    static async ResetPassword(data: RestPasswordInput) {
+        try {
+            const { email, password } = data;
+            const user = await prisma.user.findFirst({ where: { email } })
+            if (!user)
+                throw new ApiError(400, "Invalid Request")
+
+            const otp_record = await prisma.otp.findFirst({
+                where: {
+                    userId: user.id,
+                    used: true,
+                    type: "FORGET_PASSWORD"
+                },
+                orderBy: { createdAt: "desc" }
+            })
+            if (!otp_record || !otp_record.used) throw new ApiError(400, "OTP verification required");
+
+            const hash_password = await bcrypt.hash(password, Number(config.BCRYPT_SALT_ROUNDS))
+
+            await prisma.$transaction(async (tx) => {
+                await tx.user.update({ where: { email }, data: { password: hash_password } })
+                // mark all realted otps as used
+                await tx.otp.updateMany({
+                    where: { userId: user.id, type: "FORGET_PASSWORD" },
+                    data: { used: true, expiresAt: new Date() }
+                })
+            })
         } catch (error: any) {
             if (error instanceof ApiError)
                 throw error
@@ -155,7 +277,7 @@ export class AuthService {
         try {
             if (!config.REFRESH_TOKEN_SECRET)
                 throw new ApiError(400, "Failed to load token secret")
-            const decodedToken = JwtUtils.verifyToken(incommingRefreshToken, config.REFRESH_TOKEN_SECRET, next)
+            const decodedToken = JwtUtils.verifyToken(incommingRefreshToken, config.REFRESH_TOKEN_SECRET)
             if (!decodedToken)
                 throw new ApiError(401, "Invalid or Expired Token")
 
@@ -164,8 +286,12 @@ export class AuthService {
             if (!user)
                 throw new ApiError(401, "Invalid or Expired Token")
 
+            if (user.refreshToken !== incommingRefreshToken)
+                throw new ApiError(401, "Invalid or Expired Token");
+
             const { accessToken, refreshToken } = JwtUtils.generateTokens(user.id, user.username, user.role)
             await prisma.user.update({ where: { id: user.id }, data: { refreshToken } })
+
             return { accessToken, refreshToken }
         } catch (error: any) {
             if (error instanceof ApiError)

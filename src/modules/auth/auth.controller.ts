@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { loginSchema, registerSchema, resendOtpSchema, verifyOtpSchema } from './auth.validation';
+import { forgetPasswordSchema, loginSchema, registerSchema, resendOtpSchema, resetPasswordSchema, verifyForgetPasswordSchema, verifyOtpSchema } from './auth.validation';
 import { AuthService } from './auth.service';
 import { ApiResponse } from '../../utils/ApiResponse';
 import { config } from '../../config/env.config';
@@ -56,9 +56,31 @@ export class AuthController {
         }
     }
 
-    static async ForgetPassword(req: Request, res: Response, next: NextFunction) {
+    static async ForgetPasswordRequest(req: Request, res: Response, next: NextFunction) {
         try {
+            const validate_data = forgetPasswordSchema.parse(req.body)
+            await AuthService.ForgetPasswordRequest(validate_data)
+            return ApiResponse(res, true, 200, "If this email is registered, you will receive an OTP shortly.");
+        } catch (error) {
+            next(error)
+        }
+    }
 
+    static async VerifyForgetPasswordOtp(req: Request, res: Response, next: NextFunction) {
+        try {
+            const validate_data = verifyForgetPasswordSchema.parse(req.body)
+            await AuthService.VerifyForgetPasswordOTP(validate_data)
+            return ApiResponse(res, true, 200, "OTP verified. You may now proceed to reset your password.");
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    static async ResetPassword(req: Request, res: Response, next: NextFunction) {
+        try {
+            const validate_data = resetPasswordSchema.parse(req.body)
+            await AuthService.ResetPassword(validate_data)
+            return ApiResponse(res, true, 200, "Password Reset successfully");
         } catch (error) {
             next(error)
         }
@@ -83,7 +105,7 @@ export class AuthController {
             next(error)
         }
     }
-    
+
     static async Refresh_AccessToken(req: Request, res: Response, next: NextFunction) {
         try {
             const incomming_refresh_token = req.cookies?.refresh_token;

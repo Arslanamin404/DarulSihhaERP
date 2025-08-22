@@ -29,22 +29,32 @@ enum PaymentStatus {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   password     String
-  username     String    @unique
+  username     String   @unique
   fullname     String
-  role         Role      @default(STAFF)
+  role         Role     @default(STAFF)
   refreshToken String?
-  otp          String?
-  otpExpiresAt DateTime?
-  isVerfied    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  isVerfied    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  Otp          Otp[]
 
   @@index([email])
   @@index([username])
   @@index([fullname])
+}
+
+model Otp {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String
+  type      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Customer {

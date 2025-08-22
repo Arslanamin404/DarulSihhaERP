@@ -1,6 +1,5 @@
 import jwt, { SignOptions, JwtPayload } from "jsonwebtoken"
 import { config } from "../config/env.config"
-import { NextFunction } from "express"
 
 export interface TokenPayload extends JwtPayload {
     id: string
@@ -45,12 +44,11 @@ export class JwtUtils {
         return { accessToken, refreshToken }
     }
 
-    static verifyToken(token: string, secret: string, next: NextFunction): TokenPayload | null {
+    static verifyToken(token: string, secret: string,): TokenPayload | null {
         try {
             return jwt.verify(token, secret) as TokenPayload
         } catch (error) {
-            next(error)
-            return null
+            throw new Error("Invalid or expired token")
         }
     }
 }
