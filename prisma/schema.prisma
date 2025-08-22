@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum PaymentMode {
+  ONLINE
+  CASH
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  password     String
+  username     String    @unique
+  fullname     String
+  role         Role      @default(STAFF)
+  refreshToken String?
+  otp          String?
+  otpExpiresAt DateTime?
+  isVerfied    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@index([fullname])
+}
+
+model Customer {
+  id         String         @id @default(uuid())
+  name       String
+  phone      String         @unique
+  address    String
+  doctorName String
+  invoices   SalesInvoice[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Supplier {
+  id              String            @id @default(uuid())
+  name            String
+  phone           String            @unique
+  address         String
+  purchaseInvoice PurchaseInvoice[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Product {
+  id            String         @id @default(uuid())
+  productName   String
+  genericName   String
+  manufacturer  String
+  packSize      String
+  category      String
+  expiry_date   DateTime
+  quantity      Int            @default(0)
+  rate          Decimal        @db.Decimal(10, 2)
+  tax           Float          @default(0)
+  discount      Float          @default(0)
+  mrp           Decimal        @db.Decimal(10, 2)
+  salesItems    SalesItem[]
+  purchaseItems PurchaseItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([genericName])
+  @@index([productName])
+}
+
+model SalesInvoice {
+  id            String        @id @default(uuid())
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  customerId    String
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  paymentMode   PaymentMode
+  paymentStatus PaymentStatus @default(PAID)
+  items         SalesItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([customerId])
+}
+
+model SalesItem {
+  id             String       @id @default(uuid())
+  salesInvoice   SalesInvoice @relation(fields: [salesInvoiceId], references: [id])
+  salesInvoiceId String
+  product        Product      @relation(fields: [productId], references: [id])
+  productId      String
+  quantity       Int          @default(0)
+  unitPrice      Decimal      @db.Decimal(10, 2)
+  tax            Decimal      @default(0) @db.Decimal(5, 2)
+  discount       Decimal      @default(0) @db.Decimal(5, 2)
+  subTotal       Decimal      @db.Decimal(10, 2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([salesInvoiceId])
+}
+
+model PurchaseInvoice {
+  id            String         @id @default(uuid())
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+  supplierId    String
+  totalAmount   Decimal        @db.Decimal(10, 2)
+  paymentMode   PaymentMode
+  paymentStatus PaymentStatus  @default(PAID)
+  items         PurchaseItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([supplierId])
+}
+
+model PurchaseItem {
+  id                String          @id @default(uuid())
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id])
+  purchaseInvoiceId String
+  product           Product         @relation(fields: [productId], references: [id])
+  productId         String
+  quantity          Int             @default(0)
+  unitCost          Decimal         @db.Decimal(10, 2)
+  tax               Float           @default(0)
+  discount          Float           @default(0)
+  subTotal          Decimal         @db.Decimal(10, 2)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([purchaseInvoiceId])
+}
